@@ -1,168 +1,161 @@
-/*计算器目前的缺陷：
-（1）%计算问题；--------------------------如果简单计算的话，没有问题
-（2）括号的加入问题；----------------------------separate部分出现了一点问题，简单表达式的话，ok
-（3）乘号与除号的表示问题；------------------------解决一半，显示在框里的还是*与/的形式
-（4）计算过一次之后最好的体验应该是清零，---------------------已简单做到
-（5）报错情况，如果输入形式不对，应该报错
-（6）小数点显示的位数问题------------------------------------三四位的小数计算应该还可以，多了的话，就会有误差
-（7）-3的问题，负数问题----------------------现在和乘除号的问题是一样的，显示非常不美观，现在的想法是分为展示文本和计算文本*/
-var result=document.querySelector('#result');
+(function() {
+    //variable declaration
+    var result=document.querySelector('#result');
+    var resultText=document.createTextNode("");//Note text node needs to be created
+    result.appendChild(resultText);
 
-var resultText=document.createTextNode("");//主义之前result是没有子节点的，需要创建
+    var buttons=document.getElementsByTagName("td");
+    const VALID_OPERATOR_START = 3;
+    const clearAllBtn = buttons[1];
+    const clearOneBtn = buttons[2];
+    const EqualBtn = buttons[buttons.length - 1];
 
-// result.data = "";
-result.appendChild(resultText);
+    var attribute,current = "";//current represents thr str for calculation
 
-
-/*建立一个数组，对0-9等进行存储，然后循环遍历，addEventListener?*/
-var buttons=document.getElementsByTagName("td");
-for(var i=3;i<buttons.length-1;i++){
-    buttons[i].addEventListener('click',showInBox);
-}
-
-buttons[1].addEventListener("click",deleteAll);
-buttons[2].addEventListener("click",deleteOne);
-
-buttons[buttons.length-1].addEventListener("click",intergrateCacu);
-// var percent=document.querySelector("#percent");
-// alert(percent.firstChild.data);
-var attribute,current = "";//current是实际计算是需要的字符串
-function showInBox(event){//不是很理解event
-    attribute=result.className;
-    if(attribute.indexOf('calculated')>=0){
-        // alert(1);
-        resultText.data='';
-        current="";
-        result.className=result.className.replace('calculated',' ');//注意：原生的js是不存在removeClass方法的，同时，注意replace用法
+    // add event listeners for buttons
+    clearAllBtn.addEventListener("click",deleteAll);
+    clearOneBtn.addEventListener("click",deleteOne);
+    for(var i = VALID_OPERATOR_START; i < buttons.length - 1; i++){
+        buttons[i].addEventListener('click',showInBox);
     }
-    var text=this.firstChild.data;
-    var showtext=text;
-    if(text=='-' && resultText.data.length<=0)  text='0-';
-    if(text=='x')   text='*';
-    // if(text=='÷')   text='/';
-    resultText.appendData(showtext);/*点击之后能出现在result框中*/
-    current+=text;
-    // alert(typeof(resultText.data));
-}
-function deleteAll(event){
-    resultText.data='';
-    current='';
-}
-function deleteOne(event){
-    var newArray=resultText.data.split('');
-    newArray.pop();
-    resultText.data=newArray.join('');
-    var newArray2=current.split('');
-    newArray2.pop();
-    current=newArray2.join("");
-}
+    EqualBtn.addEventListener("click",intergrateCacu);
 
-//使用js来构建栈，想到js中的array本身就有push和pop方法，所以直接将表达式转变为后缀形式，然后进行计算即可。
-var isp={'#':0,'(':1,'*':5,'/':5,'%':5,'+':3,'-':3,')':6};//栈内优先数
-var icp={'#':0,'(':6,'*':4,'/':4,'%':4,'+':2,'-':2,')':1};//栈外优先数
-var eps=1e-5;
-var symbols='+-*/%()#';
-
-function separate(expression){//将string转为一个表达式，即数字构成一个元素，如果能利用正则表达式将其分开就好了
-    var interArray=[],finalArray=[];
-    for(var i=0;i<expression.length;i++){
-        if(symbols.indexOf(expression[i])!=-1){//符号
-            if(interArray.length!=0){
-                var a=interArray.join('');
-                finalArray.push(a);
-                interArray=[];
-            }
-            finalArray.push(expression[i]);
-        }else{
-            interArray.push(expression[i]);
+    function showInBox(){
+        attribute=result.className;
+        if(attribute.indexOf('calculated')>=0){
+        // when '=' is clicked, the result element's className will be changed to 'calculated'
+            resultText.data = '';
+            current = "";
+            result.className = result.className.replace('calculated',' ');
+            //note: JavaScript has no implementations for removeClass, but jQuery does
+            //note: how replace is used
         }
+        var text = this.firstChild.data; // 'this' refers to the result element
+        var showtext = text; // showtext is the str showed on the screen and text is the transformed version
+        if(text == '-' && resultText.data.length <= 0)  text = '0-';
+        if(text == 'x')   text = '*';
+        // if(text=='÷')   text='/';
+        resultText.appendData(showtext);
+        current += text;
     }
-    if(interArray.length>0){
-        var a=interArray.join('');
-        finalArray.push(a);
+
+    function deleteAll(){
+        resultText.data = '';
+        current = '';
     }
-    // console.log(finalArray);
-    return finalArray;
-}
-// finalArray=separate("(2+3)*5");
-// console.log("(2.4+3)*5".split(''));
-// console.log(finalArray);
-function turnSuffix(finalArray){//由中缀表达式(infix)转变为后缀表达式(suffix)
-    var suffixArray=['#'];
-    var lastArray=[];
-    var top,element;
-    finalArray.push('#');
-    for(var i=0;i<finalArray.length;){
-        if(symbols.indexOf(finalArray[i])==-1){//是数字
-            lastArray.push(finalArray[i]);
-            i++;
-            console.log('number');
-        }else{
-            top=suffixArray[suffixArray.length-1];
-            if(icp[finalArray[i]]>isp[top]){
-                suffixArray.push(finalArray[i]);
+
+    function deleteOne(){
+        deleteOneLetter(resultText.data);
+        deleteOneLetter(current);
+    }
+
+    function deleteOneLetter(str) {
+        var newArray = str.split('');
+        newArray.splice(str.length - 1, 1);
+        return newArray.join("");
+    }
+
+
+    const isp={'#':0,'(':1,'*':5,'/':5,'%':5,'+':3,'-':3,')':6};//栈内优先数 // inside
+    const icp={'#':0,'(':6,'*':4,'/':4,'%':4,'+':2,'-':2,')':1};//栈外优先数 // outside
+    const eps=1e-5;
+    const symbols='+-*/%()#';
+
+    // turns an expression into an array
+    function separate(expression){
+        var tempArray=[], finalArray=[];
+        for(var i = 0; i < expression.length; i++){
+            if(symbols.indexOf(expression[i]) != -1){//is a symbol
+                if(tempArray.length != 0){ // if temp array is not empty, make the temp array into a string and push into final array
+                    var a=tempArray.join('');
+                    finalArray.push(a);
+                    tempArray = [];
+                }
+                finalArray.push(expression[i]);
+            }else{
+                tempArray.push(expression[i]);
+            }
+        }
+        if(tempArray.length > 0){
+            var a = tempArray.join('');
+            finalArray.push(a);
+        }
+        // console.log(finalArray);
+        return finalArray;
+    }
+
+    // turn infix  array into suffix array
+    function turnSuffix(infixArray){
+        var tempArray=['#'];
+        var suffixArray=[];
+        var top, element;
+        infixArray.push('#');
+        for(var i = 0; i < infixArray.length; ){
+            if(symbols.indexOf(infixArray[i]) == -1){//if it's a number
+                suffixArray.push(infixArray[i]);
                 i++;
-                console.log(icp[finalArray[i]]+'大于'+isp[top]);
-            }
-            else if(icp[finalArray[i]]<isp[top]){
-                element=suffixArray.pop();
-                lastArray.push(element);
-                console.log(icp[finalArray[i]]+'小于'+isp[top]);
             }else{
-                element=suffixArray.pop();
-                // if(suffixArray.length==0)   break;
-                if(element=='(' || '#') i++;
-                console.log(icp[finalArray[i]]+'=='+isp[top]);
+                top = tempArray[tempArray.length - 1];
+                if(icp[infixArray[i]] > isp[top]){
+                    tempArray.push(infixArray[i]);
+                    i++;
+                    // console.log(icp[infixArray[i]]+'大于'+isp[top]);
+                }
+                else if(icp[infixArray[i]] < isp[top]){
+                    element=tempArray.pop();
+                    suffixArray.push(element);
+                    // console.log(icp[infixArray[i]]+'小于'+isp[top]);
+                }else{
+                    element=tempArray.pop();
+                    if(element=='(' || '#') i++;
+                    // console.log(icp[infixArray[i]]+'=='+isp[top]);
+                }
+            }
+            // console.log('i: '+i+',  '+suffixArray.toString()+"        "+tempArray.toString());
+        }
+        return suffixArray;
+    }
+
+    //calculate the result of the suffixArray
+    function calculate(suffixArray){
+        var calculator=[];
+        for(var i = 0;i < suffixArray.length; i++){
+            if(symbols.indexOf(suffixArray[i]) == -1){
+                element = parseFloat(suffixArray[i]);
+                calculator.push(element);
+            }else{
+                var element1 = calculator.pop();
+                if(suffixArray[i]=='%'){
+                    element = element1 / 100.0;
+                }else{
+                    var element2 = calculator.pop();
+                    if(suffixArray[i] =='+') element = element1 + element2;
+                    else if(suffixArray[i] =='-')   element = element2 - element1;
+                    else if(suffixArray[i] =='*')   element = element2 * element1;
+                    else if(suffixArray[i] =='/')  element = element2 / element1;
+                }
+                calculator.push(element);
             }
         }
-        console.log('i: '+i+',  '+lastArray.toString()+"        "+suffixArray.toString());
+        var calculateResult= calculator.pop();
+        // console.log(calculateResult);
+        // calculateResult=round(calculateResult,3);
+        calculateResult=round_s(calculateResult);
+        return calculateResult;
     }
-    return lastArray;
-}
 
-
-// console.log(isp[finalArray[1]]);
-// console.log(symbols.indexOf(finalArray[1]));
-
-// lastArray=turnSuffix(separate('-3+2'));
-// console.log(lastArray.toString());
-
-function calculate(lastArray){
-    var calculator=[];
-    for(var i=0;i<lastArray.length;i++){
-        if(symbols.indexOf(lastArray[i])==-1){
-            element=parseFloat(lastArray[i]);
-            calculator.push(element);
-        }else{
-            var element1=calculator.pop();
-            if(lastArray[i]=='%'){
-                element=element1/100.0;
-            }else{
-                var element2=calculator.pop();
-                if(lastArray[i]=='+') element= element1+element2;
-                else if(lastArray[i]=='-')   element= element2-element1;
-                else if(lastArray[i]=='*')   element= element2*element1;
-                else if(lastArray[i]=='/')  element=element2/element1;
-            }
-            calculator.push(element);
-        }
-    }
-    var calculateResult= calculator.pop();
-    // console.log(calculateResult);
-    // calculateResult=round(calculateResult,3);
-    calculateResult=round_s(calculateResult);
-    return calculateResult;
-}
-
-    function intergrateCacu(event){
-        // alert(current);
-        var res=calculate(turnSuffix(separate(current)));
-        resultText.data=res;
-        result.className+=' calculated ';
-        // alert(result.className);
-    }
+    // solve the precision problem for JavaScript
     function round_s(result){
-        var resultI=Math.round(result*1e5);
-        if(Math.abs(resultI-result*1e5)<eps)    result=resultI/1e5;
+        var resultI=Math.round(result * 1e5);
+        if(Math.abs(resultI - result * 1e5) < eps)    result = resultI / 1e5;
         return result;
     }
+
+    function intergrateCacu(event){
+        var res = calculate(turnSuffix(separate(current)));
+        resultText.data = res;
+        result.className += ' calculated ';
+    }
+
+}());
+
