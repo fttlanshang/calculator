@@ -45,8 +45,8 @@
     }
 
     function deleteOne(){
-        deleteOneLetter(resultText.data);
-        deleteOneLetter(current);
+        resultText.data = deleteOneLetter(resultText.data);
+        current = deleteOneLetter(current);
     }
 
     function deleteOneLetter(str) {
